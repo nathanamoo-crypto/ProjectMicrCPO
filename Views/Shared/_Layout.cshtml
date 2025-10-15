@@ -52,6 +52,7 @@
     <!-- Framework -->
     <link rel="stylesheet" href="~/duralux/vendors/css/vendors.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/duralux/vendors/css/daterangepicker.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/duralux/vendors/css/dataTables.bs5.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/duralux/css/bootstrap.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/duralux/css/theme.min.css" asp-append-version="true" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
@@ -81,6 +82,17 @@
             color: var(--apex-dark-green);
             line-height: 1.6;
             min-height: 100vh;
+        }
+
+        .site-header,
+        .nxl-header,
+        .nxl-container {
+            filter: none !important;
+            backdrop-filter: none !important;
+        }
+
+        .modal-backdrop {
+            backdrop-filter: none !important;
         }
 
         .site-header {
@@ -133,7 +145,7 @@
             top: 80px;
             left: 0;
             bottom: 0;
-            width: 280px;
+            width: 72px;
             background: linear-gradient(180deg, var(--apex-green) 0%, var(--apex-dark-green) 100%);
             color: #ffffff;
             z-index: 1030;
@@ -142,6 +154,11 @@
             transition: var(--transition-base);
             box-shadow: var(--shadow-soft);
             border-right: 2px solid var(--apex-gold);
+        }
+
+        body.sidebar-expanded .nxl-navigation,
+        body.sidebar-pinned .nxl-navigation {
+            width: 280px;
         }
 
         .nxl-navigation.collapsed {
@@ -217,6 +234,7 @@
             font-weight: 500;
             border: 1px solid transparent;
             transition: var(--transition-base);
+            justify-content: center;
         }
 
         .nxl-link:hover {
@@ -244,6 +262,20 @@
         .nxl-mtext {
             transition: var(--transition-base);
             font-weight: 500;
+            opacity: 0;
+            max-width: 0;
+            overflow: hidden;
+        }
+
+        body.sidebar-expanded .nxl-link,
+        body.sidebar-pinned .nxl-link {
+            justify-content: flex-start;
+        }
+
+        body.sidebar-expanded .nxl-mtext,
+        body.sidebar-pinned .nxl-mtext {
+            opacity: 1;
+            max-width: 200px;
         }
 
         .nxl-navigation.collapsed .navbar-wrapper,
@@ -270,6 +302,14 @@
         }
 
         .nxl-navigation.collapsed .sidebar-footer-card {
+            opacity: 0;
+            height: 0;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body:not(.sidebar-expanded):not(.sidebar-pinned) .sidebar-footer-card {
             opacity: 0;
             height: 0;
             padding: 0;
@@ -314,7 +354,7 @@
             position: sticky;
             top: 80px;
             z-index: 1020;
-            margin-left: 280px;
+            margin-left: 72px;
             transition: var(--transition-base);
         }
 
@@ -376,7 +416,7 @@
         }
 
         .nxl-container {
-            margin-left: 280px;
+            margin-left: 72px;
             padding: 2rem 2.5rem;
             transition: var(--transition-base);
             margin-top: 0;
@@ -384,14 +424,14 @@
             min-height: calc(100vh - 160px);
         }
 
-        body.sidebar-collapsed .nxl-header,
-        .nxl-header.collapsed {
-            margin-left: 60px;
+        body.sidebar-expanded .nxl-header,
+        body.sidebar-pinned .nxl-header {
+            margin-left: 280px;
         }
 
-        body.sidebar-collapsed .nxl-container,
-        .nxl-container.collapsed {
-            margin-left: 60px;
+        body.sidebar-expanded .nxl-container,
+        body.sidebar-pinned .nxl-container {
+            margin-left: 280px;
         }
 
         .header-toolbar {
@@ -403,7 +443,8 @@
         }
 
         .header-dashboard {
-            display: grid;
+            display: flex;
+            flex-wrap: wrap;
             gap: 1rem;
             margin-top: 0;
             max-height: 0;
@@ -430,7 +471,7 @@
 
         @@media (min-width: 768px) {
             .header-dashboard {
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                justify-content: space-between;
             }
         }
 
@@ -672,53 +713,83 @@
     @RenderSection("Scripts", required: false)
     <script>
         const sidebar = document.getElementById("sidebar");
-        const pageHeader = document.getElementById("pageHeader");
-        const mainContent = document.getElementById("mainContent");
         const desktopToggle = document.getElementById("desktopToggle");
         const mobileToggle = document.getElementById("mobileToggle");
+        const body = document.body;
+        const SIDEBAR_PIN_KEY = "apex-sidebar-pinned";
 
-        let isCollapsed = false;
+        const isMobile = () => window.innerWidth <= 992;
 
-        function setCollapsed(collapsed) {
-            if (!sidebar || !pageHeader || !mainContent) {
+        function readPinnedState() {
+            try {
+                return localStorage.getItem(SIDEBAR_PIN_KEY) === "true";
+            } catch {
+                return false;
+            }
+        }
+
+        function writePinnedState(value) {
+            try {
+                localStorage.setItem(SIDEBAR_PIN_KEY, value);
+            } catch {
+                /* ignore storage issues */
+            }
+        }
+
+        let isPinned = readPinnedState();
+
+        function applySidebarState() {
+            if (isMobile()) {
+                body.classList.remove("sidebar-pinned", "sidebar-expanded");
                 return;
             }
 
-            isCollapsed = collapsed;
-
-            if (collapsed) {
-                sidebar.style.width = "0";
-                sidebar.classList.add("collapsed");
-                document.body.classList.add("sidebar-collapsed");
+            if (isPinned) {
+                body.classList.add("sidebar-pinned", "sidebar-expanded");
             } else {
-                sidebar.style.width = "";
-                sidebar.classList.remove("collapsed");
-                document.body.classList.remove("sidebar-collapsed");
-            }
-
-            pageHeader.classList.toggle("collapsed", collapsed);
-            mainContent.classList.toggle("collapsed", collapsed);
-
-            if (collapsed) {
-                sidebar.classList.remove("mobile-open");
+                body.classList.remove("sidebar-pinned");
+                body.classList.remove("sidebar-expanded");
             }
         }
+
+        function expandSidebar() {
+            if (isMobile() || isPinned) {
+                return;
+            }
+
+            body.classList.add("sidebar-expanded");
+        }
+
+        function collapseSidebar() {
+            if (isMobile() || isPinned) {
+                return;
+            }
+
+            body.classList.remove("sidebar-expanded");
+        }
+
+        sidebar?.addEventListener("mouseenter", expandSidebar);
+        sidebar?.addEventListener("mouseleave", collapseSidebar);
+
+        desktopToggle?.addEventListener("click", () => {
+            if (isMobile()) {
+                return;
+            }
+
+            isPinned = !isPinned;
+            writePinnedState(isPinned);
+            applySidebarState();
+        });
 
         function toggleMobileMenu() {
             if (!sidebar) {
                 return;
             }
 
-            sidebar.style.width = "";
-            sidebar.classList.toggle("mobile-open");
-            if (!sidebar.classList.contains("mobile-open")) {
-                setCollapsed(isCollapsed);
-            }
+            const opened = !sidebar.classList.contains("mobile-open");
+            sidebar.classList.toggle("mobile-open", opened);
+            body.classList.toggle("sidebar-expanded", opened);
         }
-
-        desktopToggle?.addEventListener("click", () => {
-            setCollapsed(!isCollapsed);
-        });
 
         mobileToggle?.addEventListener("click", toggleMobileMenu);
 
@@ -727,26 +798,53 @@
                 return;
             }
 
-            if (window.innerWidth > 992) {
+            if (isMobile()) {
                 sidebar.classList.remove("mobile-open");
-                setCollapsed(isCollapsed);
-            } else {
-                sidebar.style.width = "";
-                setCollapsed(false);
             }
+
+            applySidebarState();
         });
 
         document.querySelectorAll('.nxl-link').forEach(link => {
             link.addEventListener('click', () => {
-                if (window.innerWidth <= 992) {
+                if (isMobile()) {
                     sidebar?.classList.remove('mobile-open');
+                    body.classList.remove("sidebar-expanded");
                 }
             });
         });
 
-        document.addEventListener('DOMContentLoaded', function () {
-            setCollapsed(false);
-            console.log('Apex Bank ARB Cheque System loaded successfully');
+        function clearStuckOverlays() {
+            if (!document.querySelector('.modal.show')) {
+                document.body.classList.remove('modal-open');
+            }
+
+            document.body.classList.remove('blur-active', 'backdrop-active');
+            document.body.style.removeProperty('padding-right');
+            document.body.style.removeProperty('overflow');
+
+            document.querySelectorAll('.modal-backdrop, .nxl-overlay, .offcanvas-backdrop').forEach(el => el.remove());
+
+            ['.nxl-container', '.nxl-header', '.site-header', '#mainContent'].forEach(selector => {
+                document.querySelectorAll(selector).forEach(el => {
+                    el.style.filter = '';
+                    el.style.backdropFilter = '';
+                });
+            });
+        }
+
+        document.addEventListener('hidden.bs.modal', clearStuckOverlays);
+
+        document.addEventListener('shown.bs.modal', () => {
+            document.querySelectorAll('.modal-backdrop:not(.show)').forEach(el => el.remove());
+        });
+
+        applySidebarState();
+        clearStuckOverlays();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            applySidebarState();
+            clearStuckOverlays();
         });
     </script>
 </body>
