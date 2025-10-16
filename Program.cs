@@ -7,7 +7,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
 builder.Services.AddDbContext<MicrDbContext>(options =>
-    options.UseSqlite(connectionString));
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddControllersWithViews();
 
@@ -16,21 +16,26 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MicrDbContext>();
-    dbContext.Database.EnsureCreated();
 
-    dbContext.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS AccountTypeCustom (
-        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-        AccountTypeName TEXT NOT NULL,
-        Description TEXT,
-        CreatedAt TEXT NOT NULL
-    );");
+    var provider = dbContext.Database.ProviderName ?? string.Empty;
+    if (provider.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
+    {
+        dbContext.Database.EnsureCreated();
 
-    dbContext.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS RegionCustom (
-        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-        RegionName TEXT NOT NULL,
-        Description TEXT,
-        CreatedAt TEXT NOT NULL
-    );");
+        dbContext.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS AccountTypeCustom (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            AccountTypeName TEXT NOT NULL,
+            Description TEXT,
+            CreatedAt TEXT NOT NULL
+        );");
+
+        dbContext.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS RegionCustom (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            RegionName TEXT NOT NULL,
+            Description TEXT,
+            CreatedAt TEXT NOT NULL
+        );");
+    }
 }
 
 // ✅ 4. Configure the HTTP request pipeline

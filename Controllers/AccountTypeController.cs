@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MicrDbChequeProcessingSystem.Data;
 using MicrDbChequeProcessingSystem.Models;
@@ -30,18 +31,26 @@ public class AccountTypeController : Controller
             })
             .ToListAsync();
 
-        var customTypes = await _context.AccountTypeCustoms
-            .AsNoTracking()
-            .OrderByDescending(a => a.CreatedAt)
-            .Select(a => new AccountTypeListItem
-            {
-                Name = a.AccountTypeName,
-                Code = null,
-                Source = "Custom",
-                Description = a.Description,
-                Created = a.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-            })
-            .ToListAsync();
+        List<AccountTypeListItem> customTypes = new();
+        try
+        {
+            customTypes = await _context.AccountTypeCustoms
+                .AsNoTracking()
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => new AccountTypeListItem
+                {
+                    Name = a.AccountTypeName,
+                    Code = null,
+                    Source = "Custom",
+                    Description = a.Description,
+                    Created = a.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex) when (IsMissingCustomTable(ex))
+        {
+            customTypes = new List<AccountTypeListItem>();
+        }
 
         var viewModel = new AccountTypeIndexViewModel
         {
@@ -76,6 +85,10 @@ public class AccountTypeController : Controller
             _context.AccountTypeCustoms.Add(entry);
             await _context.SaveChangesAsync();
         }
+        catch (DbUpdateException ex) when (IsMissingCustomTable(ex))
+        {
+            return StatusCode(501, new { success = false, message = "Custom account types are not enabled in this database." });
+        }
         catch (DbUpdateException)
         {
             return StatusCode(500, new { success = false, message = "We couldn't save the record. Please try again." });
@@ -94,5 +107,25 @@ public class AccountTypeController : Controller
                 created = entry.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
             }
         });
+    }
+    private static bool IsMissingCustomTable(Exception? exception)
+    {
+        while (exception is not null)
+        {
+            if (exception is SqlException sqlEx)
+            {
+                foreach (SqlError error in sqlEx.Errors)
+                {
+                    if (error.Number == 208)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            exception = exception.InnerException;
+        }
+
+        return false;
     }
 }

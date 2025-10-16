@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MicrDbChequeProcessingSystem.Data;
 using MicrDbChequeProcessingSystem.Models;
@@ -17,11 +18,12 @@ public class RegionController : Controller
 
     public async Task<IActionResult> Index()
     {
-        var systemRegions = await _context.RegionZones
-            .Include(r => r.Banks)
-                .ThenInclude(b => b.BankBranches)
-            .AsNoTracking()
-            .OrderBy(r => r.RegionName)
+        var systemRegions = (await _context.RegionZones
+                .Include(r => r.Banks)
+                    .ThenInclude(b => b.BankBranches)
+                .AsNoTracking()
+                .OrderBy(r => r.RegionName)
+                .ToListAsync())
             .Select(r => new RegionListItem
             {
                 Name = r.RegionName,
@@ -31,21 +33,29 @@ public class RegionController : Controller
                 Banks = r.Banks.Count,
                 Branches = r.Banks.Sum(b => b.BankBranches.Count)
             })
-            .ToListAsync();
+            .ToList();
 
-        var customRegions = await _context.RegionCustoms
-            .AsNoTracking()
-            .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new RegionListItem
-            {
-                Name = r.RegionName,
-                Source = "Custom",
-                Description = r.Description,
-                Created = r.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm"),
-                Banks = 0,
-                Branches = 0
-            })
-            .ToListAsync();
+        List<RegionListItem> customRegions = new();
+        try
+        {
+            customRegions = await _context.RegionCustoms
+                .AsNoTracking()
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new RegionListItem
+                {
+                    Name = r.RegionName,
+                    Source = "Custom",
+                    Description = r.Description,
+                    Created = r.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm"),
+                    Banks = 0,
+                    Branches = 0
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex) when (IsMissingCustomTable(ex))
+        {
+            customRegions = new List<RegionListItem>();
+        }
 
         var viewModel = new RegionIndexViewModel
         {
@@ -80,6 +90,10 @@ public class RegionController : Controller
             _context.RegionCustoms.Add(entry);
             await _context.SaveChangesAsync();
         }
+        catch (DbUpdateException ex) when (IsMissingCustomTable(ex))
+        {
+            return StatusCode(501, new { success = false, message = "Custom regions are not enabled in this database." });
+        }
         catch (DbUpdateException)
         {
             return StatusCode(500, new { success = false, message = "We couldn't save the record. Please try again." });
@@ -98,5 +112,25 @@ public class RegionController : Controller
                 branches = 0
             }
         });
+    }
+    private static bool IsMissingCustomTable(Exception? exception)
+    {
+        while (exception is not null)
+        {
+            if (exception is SqlException sqlEx)
+            {
+                foreach (SqlError error in sqlEx.Errors)
+                {
+                    if (error.Number == 208)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            exception = exception.InnerException;
+        }
+
+        return false;
     }
 }
