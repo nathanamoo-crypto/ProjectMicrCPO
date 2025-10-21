@@ -39,24 +39,14 @@ if (!string.IsNullOrWhiteSpace(defaultSqlServer))
     finalSqlServer = csb.ConnectionString;
 }
 
-// Probe SQL Server connectivity up-front; fallback to SQLite if unreachable
-bool useSqlServer = false;
-if (!string.IsNullOrWhiteSpace(finalSqlServer))
+// SQL Server only (no SQLite fallback)
+if (string.IsNullOrWhiteSpace(finalSqlServer))
 {
-    useSqlServer = TryOpenSqlServer(finalSqlServer, 2);
+    throw new InvalidOperationException("DefaultConnection is not configured. SQL Server is required.");
 }
 
 builder.Services.AddDbContext<MicrDbContext>(options =>
-{
-    if (useSqlServer && !string.IsNullOrWhiteSpace(finalSqlServer))
-    {
-        options.UseSqlServer(finalSqlServer, sql => sql.EnableRetryOnFailure());
-        return;
-    }
-
-    // If no SQL Server configured, use SQLite
-    options.UseSqlite($"Data Source={sqliteFile}");
-});
+    options.UseSqlServer(finalSqlServer!, sql => sql.EnableRetryOnFailure()));
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<ISystemStatusService, SystemStatusService>();
@@ -67,17 +57,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MicrDbContext>();
 
-    var provider = dbContext.Database.ProviderName ?? string.Empty;
-    if (provider.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
-    {
-        dbContext.Database.EnsureCreated();
-    }
-    else if (provider.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
-    {
-        // Do NOT EnsureCreated on SQL Server to avoid conflicts with existing schemas
-        // Just verify connectivity; schema should be managed externally or via migrations
-        try { dbContext.Database.CanConnect(); } catch { /* handled by middleware later */ }
-    }
+    // Apply migrations on SQL Server to ensure model matches DB
+    dbContext.Database.Migrate();
 }
 
 // ✅ 4. Configure the HTTP request pipeline
@@ -122,24 +103,4 @@ static string? TryGetSqlServerPortForInstance(string instanceName)
     catch { return null; }
 }
 
-// Utility: quick connectivity probe for SQL Server using a short timeout
-static bool TryOpenSqlServer(string connectionString, int timeoutSeconds = 2)
-{
-    try
-    {
-        var csb = new SqlConnectionStringBuilder(connectionString)
-        {
-            ConnectTimeout = timeoutSeconds
-        };
-        using var conn = new SqlConnection(csb.ConnectionString);
-        conn.Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        cmd.ExecuteScalar();
-        return true;
-    }
-    catch
-    {
-        return false;
-    }
-}
+// (no SQLite; no connectivity probe)
