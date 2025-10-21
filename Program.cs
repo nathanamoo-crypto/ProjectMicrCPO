@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.Win32;
+using System.Runtime.Versioning;
 using MicrDbChequeProcessingSystem.Data; // your data namespace
 using MicrDbChequeProcessingSystem.Services;
 using System.IO;
@@ -28,7 +29,7 @@ if (!string.IsNullOrWhiteSpace(defaultSqlServer))
 
         if (!string.IsNullOrWhiteSpace(instance))
         {
-            var port = TryGetSqlServerPortForInstance(instance);
+            string? port = OperatingSystem.IsWindows() ? TryGetSqlServerPortForInstance(instance) : null;
             if (!string.IsNullOrWhiteSpace(port))
             {
                 csb.DataSource = host + "," + port;
@@ -80,6 +81,7 @@ app.MapControllerRoute(
 app.Run();
 
 // Utility: best-effort read of TCP port for named SQL Server instance (local machine)
+[SupportedOSPlatform("windows")]
 static string? TryGetSqlServerPortForInstance(string instanceName)
 {
     try
