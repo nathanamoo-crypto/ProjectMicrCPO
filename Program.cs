@@ -98,7 +98,14 @@ static string? TryGetSqlServerPortForInstance(string instanceName)
         // Prefer explicit port, else dynamic port
         var port = !string.IsNullOrWhiteSpace(explicitPort) ? explicitPort : dynamicPort;
         if (string.IsNullOrWhiteSpace(port)) return null;
-        return port.Split(';').FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
+
+        var candidate = port.Split(';').FirstOrDefault(p => !string.IsNullOrWhiteSpace(p))?.Trim();
+        if (string.IsNullOrWhiteSpace(candidate)) return null;
+        if (int.TryParse(candidate, out var portNum) && portNum > 0 && portNum <= 65535)
+        {
+            return candidate;
+        }
+        return null;
     }
     catch { return null; }
 }
