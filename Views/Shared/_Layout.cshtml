@@ -985,6 +985,21 @@
         <!--! BEGIN: Theme Customizer  !-->
         <script src="~/js/theme-customizer-init.min.js"></script>
         <!--! END: Theme Customizer !-->
+        <script>
+            // Ensure navigation works for real links even if theme scripts intercept .nxl-link clicks
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('a.nxl-link[href]').forEach(function (a) {
+                    var href = a.getAttribute('href');
+                    if (href && href !== '#' && !href.startsWith('javascript')) {
+                        a.addEventListener('click', function (ev) {
+                            // Stop theme handlers that might call preventDefault on .nxl-link
+                            ev.stopImmediatePropagation();
+                            window.location.href = href;
+                        }, true);
+                    }
+                });
+            });
+        </script>
 
         @RenderSection("Scripts", required: false)
     </body>
