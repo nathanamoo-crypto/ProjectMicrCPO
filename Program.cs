@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using MicrDbChequeProcessingSystem.Data; // your data namespace
 using MicrDbChequeProcessingSystem.Services;
 using System.IO;
@@ -10,12 +11,26 @@ var config = builder.Configuration;
 var defaultSqlServer = config.GetConnectionString("DefaultConnection");
 var sqliteFile = Path.Combine(env.ContentRootPath, "micrdb.db");
 
+// Probe SQL Server connectivity first; if unreachable, fall back to SQLite
+bool sqlServerReachable = false;
+if (!string.IsNullOrWhiteSpace(defaultSqlServer))
+{
+    try
+    {
+        var csb = new SqlConnectionStringBuilder(defaultSqlServer);
+        if (!csb.ContainsKey("Connect Timeout")) csb["Connect Timeout"] = 3;
+        using var conn = new SqlConnection(csb.ConnectionString);
+        conn.Open();
+        sqlServerReachable = true;
+    }
+    catch { sqlServerReachable = false; }
+}
+
 builder.Services.AddDbContext<MicrDbContext>(options =>
 {
-    // Prefer SQL Server when a connection string is provided
-    if (!string.IsNullOrWhiteSpace(defaultSqlServer))
+    if (sqlServerReachable)
     {
-        options.UseSqlServer(defaultSqlServer, sql => sql.EnableRetryOnFailure());
+        options.UseSqlServer(defaultSqlServer!, sql => sql.EnableRetryOnFailure());
         return;
     }
 
