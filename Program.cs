@@ -60,8 +60,9 @@ using (var scope = app.Services.CreateScope())
     }
     else if (provider.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
     {
-        // Ensure database exists on SQL Server too (no migrations in repo)
-        dbContext.Database.EnsureCreated();
+        // Do NOT EnsureCreated on SQL Server to avoid conflicts with existing schemas
+        // Just verify connectivity; schema should be managed externally or via migrations
+        try { dbContext.Database.CanConnect(); } catch { /* handled by middleware later */ }
     }
 }
 
