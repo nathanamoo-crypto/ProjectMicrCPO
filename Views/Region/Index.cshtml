@@ -22,7 +22,6 @@
                     <tr>
                         <th scope="col">Region</th>
                         <th scope="col">Description</th>
-                        <th scope="col">Source</th>
                         <th scope="col">Banks</th>
                         <th scope="col">Branches</th>
                         <th scope="col">Created</th>
@@ -36,7 +35,6 @@
                             <tr>
                                 <td class="fw-semibold">@region.Name</td>
                                 <td>@(string.IsNullOrWhiteSpace(region.Description) ? "—" : region.Description)</td>
-                                <td>@region.Source</td>
                                 <td>@(region.Banks.HasValue ? region.Banks : 0)</td>
                                 <td>@(region.Branches.HasValue ? region.Branches : 0)</td>
                                 <td>@region.Created</td>
@@ -125,7 +123,6 @@
                                 table.row.add([
                                     result.data.regionName,
                                     result.data.description || '—',
-                                    result.data.source,
                                     result.data.banks ?? 0,
                                     result.data.branches ?? 0,
                                     result.data.created

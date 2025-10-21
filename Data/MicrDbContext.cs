@@ -17,14 +17,12 @@ public partial class MicrDbContext : DbContext
     }
 
     public virtual DbSet<AccountType> AccountTypes { get; set; }
-    public virtual DbSet<AccountTypeCustom> AccountTypeCustoms { get; set; }
     public virtual DbSet<ApprovalStatus> ApprovalStatuses { get; set; }
     public virtual DbSet<Bank> Banks { get; set; }
     public virtual DbSet<BankBranch> BankBranches { get; set; }
     public virtual DbSet<BookType> BookTypes { get; set; }
     public virtual DbSet<Currency> Currencies { get; set; }
     public virtual DbSet<CustomerProfile> CustomerProfiles { get; set; }
-    public virtual DbSet<RegionCustom> RegionCustoms { get; set; }
     public virtual DbSet<NumberOfLeaflet> NumberOfLeaflets { get; set; }
     public virtual DbSet<RegionZone> RegionZones { get; set; }
     public virtual DbSet<Status> Statuses { get; set; }
@@ -63,34 +61,18 @@ public partial class MicrDbContext : DbContext
                 .HasConstraintName("FK_ApprovalStatus_UserProfile");
         });
 
-        modelBuilder.Entity<AccountTypeCustom>(entity =>
+        // Description support on AccountType
+        modelBuilder.Entity<AccountType>(entity =>
         {
-            entity.ToTable("AccountTypeCustom");
-
-            entity.Property(e => e.AccountTypeName)
-                .HasMaxLength(150)
-                .IsRequired();
-
             entity.Property(e => e.Description)
                 .HasMaxLength(400);
-
-            entity.Property(e => e.CreatedAt)
-                .HasColumnType("datetime");
         });
 
-        modelBuilder.Entity<RegionCustom>(entity =>
+        // Description support on Region(Zone)
+        modelBuilder.Entity<RegionZone>(entity =>
         {
-            entity.ToTable("RegionCustom");
-
-            entity.Property(e => e.RegionName)
-                .HasMaxLength(150)
-                .IsRequired();
-
             entity.Property(e => e.Description)
                 .HasMaxLength(400);
-
-            entity.Property(e => e.CreatedAt)
-                .HasColumnType("datetime");
         });
 
         modelBuilder.Entity<Bank>(entity =>
