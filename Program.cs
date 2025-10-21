@@ -12,19 +12,22 @@ var sqliteFile = Path.Combine(env.ContentRootPath, "micrdb.db");
 
 builder.Services.AddDbContext<MicrDbContext>(options =>
 {
+    // Prefer SQL Server when a connection string is provided
+    if (!string.IsNullOrWhiteSpace(defaultSqlServer))
+    {
+        options.UseSqlServer(defaultSqlServer);
+        return;
+    }
+
+    // Development fallback to SQLite when micrdb.db is present
     if (env.IsDevelopment() && File.Exists(sqliteFile))
     {
         options.UseSqlite($"Data Source={sqliteFile}");
+        return;
     }
-    else if (!string.IsNullOrWhiteSpace(defaultSqlServer))
-    {
-        options.UseSqlServer(defaultSqlServer);
-    }
-    else
-    {
-        // Fallback to SQLite if no SQL Server connection string is provided
-        options.UseSqlite($"Data Source={sqliteFile}");
-    }
+
+    // Last resort: SQLite in content root
+    options.UseSqlite($"Data Source={sqliteFile}");
 });
 
 builder.Services.AddControllersWithViews();
