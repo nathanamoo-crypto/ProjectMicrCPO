@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MicrDbChequeProcessingSystem.Data; // your data namespace
+using MicrDbChequeProcessingSystem.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,7 @@ builder.Services.AddDbContext<MicrDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<ISystemStatusService, SystemStatusService>();
 
 var app = builder.Build();
 
