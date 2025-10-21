@@ -39,9 +39,16 @@ if (!string.IsNullOrWhiteSpace(defaultSqlServer))
     finalSqlServer = csb.ConnectionString;
 }
 
+// Probe SQL Server connectivity up-front; fallback to SQLite if unreachable
+bool useSqlServer = false;
+if (!string.IsNullOrWhiteSpace(finalSqlServer))
+{
+    useSqlServer = TryOpenSqlServer(finalSqlServer, 2);
+}
+
 builder.Services.AddDbContext<MicrDbContext>(options =>
 {
-    if (!string.IsNullOrWhiteSpace(finalSqlServer))
+    if (useSqlServer && !string.IsNullOrWhiteSpace(finalSqlServer))
     {
         options.UseSqlServer(finalSqlServer, sql => sql.EnableRetryOnFailure());
         return;
@@ -113,4 +120,26 @@ static string? TryGetSqlServerPortForInstance(string instanceName)
         return port.Split(';').FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
     }
     catch { return null; }
+}
+
+// Utility: quick connectivity probe for SQL Server using a short timeout
+static bool TryOpenSqlServer(string connectionString, int timeoutSeconds = 2)
+{
+    try
+    {
+        var csb = new SqlConnectionStringBuilder(connectionString)
+        {
+            ConnectTimeout = timeoutSeconds
+        };
+        using var conn = new SqlConnection(csb.ConnectionString);
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1";
+        cmd.ExecuteScalar();
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
 }
