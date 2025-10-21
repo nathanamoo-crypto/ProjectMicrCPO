@@ -1,14 +1,31 @@
 using Microsoft.EntityFrameworkCore;
 using MicrDbChequeProcessingSystem.Data; // your data namespace
 using MicrDbChequeProcessingSystem.Services;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
+var env = builder.Environment;
+var config = builder.Configuration;
+var defaultSqlServer = config.GetConnectionString("DefaultConnection");
+var sqliteFile = Path.Combine(env.ContentRootPath, "micrdb.db");
 
 builder.Services.AddDbContext<MicrDbContext>(options =>
-    options.UseSqlServer(connectionString));
+{
+    if (env.IsDevelopment() && File.Exists(sqliteFile))
+    {
+        options.UseSqlite($"Data Source={sqliteFile}");
+    }
+    else if (!string.IsNullOrWhiteSpace(defaultSqlServer))
+    {
+        options.UseSqlServer(defaultSqlServer);
+    }
+    else
+    {
+        // Fallback to SQLite if no SQL Server connection string is provided
+        options.UseSqlite($"Data Source={sqliteFile}");
+    }
+});
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<ISystemStatusService, SystemStatusService>();
