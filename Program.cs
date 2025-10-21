@@ -15,7 +15,7 @@ builder.Services.AddDbContext<MicrDbContext>(options =>
     // Prefer SQL Server when a connection string is provided
     if (!string.IsNullOrWhiteSpace(defaultSqlServer))
     {
-        options.UseSqlServer(defaultSqlServer);
+        options.UseSqlServer(defaultSqlServer, sql => sql.EnableRetryOnFailure());
         return;
     }
 
@@ -57,6 +57,11 @@ using (var scope = app.Services.CreateScope())
             Description TEXT,
             CreatedAt TEXT NOT NULL
         );");
+    }
+    else if (provider.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
+    {
+        // Ensure database exists on SQL Server too (no migrations in repo)
+        dbContext.Database.EnsureCreated();
     }
 }
 
