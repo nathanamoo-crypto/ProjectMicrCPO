@@ -14,7 +14,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="statusTable">
                 <thead class="table-light">
                     <tr>
                         <th scope="col">Status</th>
@@ -48,3 +48,15 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/duralux/vendors/js/dataTables.min.js" asp-append-version="true"></script>
+    <script src="~/duralux/vendors/js/dataTables.bs5.min.js" asp-append-version="true"></script>
+    <script>
+        $(function () {
+            $('#statusTable').DataTable({
+                responsive: true
+            });
+        });
+    </script>
+}
