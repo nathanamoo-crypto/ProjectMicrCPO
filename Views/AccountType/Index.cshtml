@@ -17,13 +17,12 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover align-middle" id="accountTypeTable">
+            <table class="table table-hover" id="accountTypeTable">
                 <thead class="table-light">
                     <tr>
                         <th scope="col">Name</th>
                         <th scope="col">Code</th>
                         <th scope="col">Description</th>
-                        <th scope="col">Source</th>
                         <th scope="col">Created</th>
                     </tr>
                 </thead>
@@ -36,7 +35,6 @@
                                 <td class="fw-semibold">@item.Name</td>
                                 <td>@(string.IsNullOrWhiteSpace(item.Code) ? "—" : item.Code)</td>
                                 <td>@(string.IsNullOrWhiteSpace(item.Description) ? "—" : item.Description)</td>
-                                <td>@item.Source</td>
                                 <td>@item.Created</td>
                             </tr>
                         }
@@ -124,7 +122,6 @@
                                     result.data.accountTypeName,
                                     result.data.code || '—',
                                     result.data.description || '—',
-                                    result.data.source,
                                     result.data.created
                                 ]).draw(false);
 

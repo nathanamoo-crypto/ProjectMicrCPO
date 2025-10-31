@@ -14,7 +14,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="currencyTable">
                 <thead class="table-light">
                     <tr>
                         <th scope="col">Code</th>
@@ -49,17 +49,20 @@
                             </tr>
                         }
                     }
-                    else
-                    {
-                        <tr>
-                            <td colspan="6" class="text-center py-5">
-                                <i class="bi bi-cash-coin display-6 text-muted"></i>
-                                <p class="mt-3 mb-0 text-muted">No currencies have been configured.</p>
-                            </td>
-                        </tr>
-                    }
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/duralux/vendors/js/dataTables.min.js" asp-append-version="true"></script>
+    <script src="~/duralux/vendors/js/dataTables.bs5.min.js" asp-append-version="true"></script>
+    <script>
+        $(function () {
+            $('#currencyTable').DataTable({
+                responsive: true
+            });
+        });
+    </script>
+}
