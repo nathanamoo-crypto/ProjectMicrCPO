@@ -18,48 +18,19 @@ public class AccountTypeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        var systemTypes = await _context.AccountTypes
+        var items = await _context.AccountTypes
             .AsNoTracking()
             .OrderBy(a => a.AccountTypeName)
             .Select(a => new AccountTypeListItem
             {
                 Name = a.AccountTypeName,
                 Code = a.AccountTypeCode,
-                Source = "Core",
-                Description = null,
+                Description = a.Description,
                 Created = a.CreatedDate.ToString("dd MMM yyyy")
             })
             .ToListAsync();
 
-        List<AccountTypeListItem> customTypes = new();
-        try
-        {
-            customTypes = await _context.AccountTypeCustoms
-                .AsNoTracking()
-                .OrderByDescending(a => a.CreatedAt)
-                .Select(a => new AccountTypeListItem
-                {
-                    Name = a.AccountTypeName,
-                    Code = null,
-                    Source = "Custom",
-                    Description = a.Description,
-                    Created = a.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-                })
-                .ToListAsync();
-        }
-        catch (Exception ex) when (IsMissingCustomTable(ex))
-        {
-            customTypes = new List<AccountTypeListItem>();
-        }
-
-        var viewModel = new AccountTypeIndexViewModel
-        {
-            Items = systemTypes
-                .Concat(customTypes)
-                .OrderByDescending(i => i.Source == "Custom")
-                .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList()
-        };
+        var viewModel = new AccountTypeIndexViewModel { Items = items };
 
         return View(viewModel);
     }
@@ -73,21 +44,40 @@ public class AccountTypeController : Controller
             return BadRequest(new { success = false, message = "Please provide the required details." });
         }
 
-        var entry = new AccountTypeCustom
+        // Resolve current user id
+        long createdBy = await ResolveCurrentUserId();
+
+        // Generate a simple code from the name
+        var name = request.AccountTypeName.Trim();
+        var baseCode = new string(name
+            .Where(char.IsLetterOrDigit)
+            .Take(10)
+            .Select(char.ToUpper)
+            .ToArray());
+        if (string.IsNullOrWhiteSpace(baseCode)) baseCode = "ACCTYPE";
+
+        var code = baseCode;
+        int i = 1;
+        while (await _context.AccountTypes.AnyAsync(a => a.AccountTypeCode == code))
         {
-            AccountTypeName = request.AccountTypeName.Trim(),
+            code = (baseCode + i.ToString()).Substring(0, Math.Min(10, (baseCode + i.ToString()).Length));
+            i++;
+        }
+
+        var entry = new AccountType
+        {
+            AccountTypeName = name,
+            AccountTypeCode = code,
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
-            CreatedAt = DateTime.UtcNow
+            IsActive = true,
+            CreatedByUserId = createdBy,
+            CreatedDate = DateTime.UtcNow
         };
 
         try
         {
-            _context.AccountTypeCustoms.Add(entry);
+            _context.AccountTypes.Add(entry);
             await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex) when (IsMissingCustomTable(ex))
-        {
-            return StatusCode(501, new { success = false, message = "Custom account types are not enabled in this database." });
         }
         catch (DbUpdateException)
         {
@@ -99,33 +89,22 @@ public class AccountTypeController : Controller
             success = true,
             data = new
             {
-                id = entry.Id,
+                id = entry.AccountTypeId,
                 accountTypeName = entry.AccountTypeName,
-                code = (string?)null,
+                code = entry.AccountTypeCode,
                 description = entry.Description,
-                source = "Custom",
-                created = entry.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                created = entry.CreatedDate.ToLocalTime().ToString("dd MMM yyyy HH:mm")
             }
         });
     }
-    private static bool IsMissingCustomTable(Exception? exception)
+
+    private async Task<long> ResolveCurrentUserId()
     {
-        while (exception is not null)
-        {
-            if (exception is SqlException sqlEx)
-            {
-                foreach (SqlError error in sqlEx.Errors)
-                {
-                    if (error.Number == 208)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            exception = exception.InnerException;
-        }
-
-        return false;
+        var winUser = Environment.UserName;
+        var user = await _context.UserProfiles.AsNoTracking()
+            .OrderBy(u => u.UserId)
+            .FirstOrDefaultAsync(u => u.Username == winUser) ??
+                   await _context.UserProfiles.AsNoTracking().OrderBy(u => u.UserId).FirstOrDefaultAsync();
+        return user?.UserId ?? 1;
     }
 }

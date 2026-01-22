@@ -11,6 +11,8 @@ public partial class AccountType
 
     public string AccountTypeName { get; set; } = null!;
 
+    public string? Description { get; set; }
+
     public bool IsActive { get; set; }
 
     public long CreatedByUserId { get; set; }

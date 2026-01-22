@@ -9,6 +9,8 @@ public partial class RegionZone
 
     public string RegionName { get; set; } = null!;
 
+    public string? Description { get; set; }
+
     public long? CreatedByUserId { get; set; }
 
     public DateTime? CreatedDate { get; set; }
